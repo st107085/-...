@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>地震站狀態地圖</title>
+
+  <!-- Leaflet 地圖庫的 CSS 樣式表 -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <!-- Leaflet 地圖庫的 JavaScript 檔案 -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <!-- Tailwind CSS 框架，用於快速設定基本樣式 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- 自訂呼吸動畫樣式 -->
+  <style>
+    /* 定義呼吸圓點的基本樣式 */
+    .pulse-circle {
+      width: 20px; /* 圓點寬度 */
+      height: 20px; /* 圓點高度 */
+      border-radius: 50%; /* 讓 div 變成圓形 */
+      position: relative; /* 用於後續的陰影動畫 */
+      background-color: #4ade80; /* 預設綠色背景（正常狀態） */
+      animation: pulse 2s infinite; /* 套用 'pulse' 動畫，持續 2 秒，無限重複 */
+      box-shadow: 0 0 0 rgba(0,0,0, 0.3); /* 初始陰影，幾乎看不見 */
+    }
+
+    /* 當圓點狀態為 'error' 時，套用紅色樣式 */
+    .pulse-circle.red {
+      background-color: #f87171; /* 故障紅色背景 */
+    }
+
+    /* 定義綠色圓點的呼吸動畫 */
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.4); /* 動畫開始：無陰影，透明度 0.4 的綠色 */
+      }
+      70% {
+        box-shadow: 0 0 0 10px rgba(0, 255, 0, 0); /* 動畫進行到 70%：陰影擴散到 10px，但透明度降為 0 (消失) */
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(0, 255, 0, 0); /* 動畫結束：陰影消失 */
+      }
+    }
+
+    /* 定義紅色圓點的呼吸動畫 */
+    .pulse-circle.red {
+      animation: pulse-red 2s infinite; /* 套用 'pulse-red' 動畫，持續 2 秒，無限重複 */
+    }
+
+    @keyframes pulse-red {
+      0% {
+        box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.5); /* 動畫開始：無陰影，透明度 0.5 的紅色 */
+      }
+      70% {
+        box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); /* 動畫進行到 70%：陰影擴散到 10px，但透明度降為 0 (消失) */
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); /* 動畫結束：陰影消失 */
+      }
+    }
+  </style>
+</head>
+<body class="h-screen m-0 p-0">
+  <!-- 地圖容器，佔滿整個視窗高度和寬度 -->
+  <div id="map" class="w-full h-full"></div>
+
+  <script>
+    // 初始化 Leaflet 地圖
+    // 'map' 是地圖容器的 ID
+    // setView([23.6, 120.9], 7) 設定地圖的中心點為經緯度 [23.6, 120.9] (大約台灣的中心位置)，
+    // 縮放等級為 7 (數字越大，地圖顯示越詳細，但範圍越小)。
+    const map = L.map('map').setView([23.6, 120.9], 7);
+
+    // 添加 OpenStreetMap 的瓦片圖層
+    // 這會載入地圖的底圖，讓地圖看起來像真實的地圖
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      // attribution 是地圖來源的版權資訊，會顯示在地圖右下角
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map); // 將此圖層添加到地圖上
+
+    // 站點資料（這裡使用範例資料，實際應用中可以從 API 載入）
+    const stations = [
+      { name: "台中南屯", lat: 24.142154, lng: 120.652422, status: "normal" },
+      { name: "台中南區", lat: 24.1108, lng: 120.6749, status: "normal" },
+      // 更新台中北屯的經緯度
+      { name: "台中北屯", lat: 24.182204, lng: 120.670979, status: "normal" },
+      { name: "台南", lat: 22.9999, lng: 120.2270, status: "normal" }, // 你的家鄉台南！
+      { name: "高雄", lat: 22.6273, lng: 120.3014, status: "error" }, // 示範故障狀態
+      { name: "花蓮", lat: 23.9745, lng: 121.6146, status: "normal" },
+      // 新增屏東縣麟洛鄉的站點
+      { name: "屏東縣麟洛鄉", lat: 22.6509352, lng: 120.5262093, status: "normal" },
+    ];
+
+    // 遍歷所有站點資料，並在地圖上添加標記
+    stations.forEach(station => {
+      // 創建一個自訂的 HTML 圖標 (divIcon)
+      // 這允許我們使用自訂的 div 元素作為地圖上的標記
+      const divIcon = L.divIcon({
+        className: '', // 這裡不需要額外的 className，因為樣式直接寫在 html 裡
+        // 根據站點狀態動態生成 HTML 內容
+        // 如果 status 是 'error'，則添加 'red' 類別，讓圓點變紅並觸發紅色呼吸動畫
+        html: `<div class="pulse-circle ${station.status === 'error' ? 'red' : ''}"></div>`,
+        iconSize: [20, 20], // 圖標的大小 [寬度, 高度]
+        iconAnchor: [10, 10] // 圖標的錨點，表示圖標的哪個點對應到地圖上的經緯度 (這裡設定為中心點)
+      });
+
+      // 在地圖上創建標記 (Marker)
+      L.marker([station.lat, station.lng], { icon: divIcon })
+        .addTo(map) // 將標記添加到地圖上
+        // 為標記綁定彈出視窗 (Popup)，點擊標記時會顯示資訊
+        .bindPopup(`<strong>${station.name}</strong><br>狀態：${station.status === 'normal' ? '✅ 正常' : '❌ 故障'}`);
+    });
+  </script>
+</body>
+</html>
