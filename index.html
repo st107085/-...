@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>地震站狀態地圖</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- 自訂呼吸動畫樣式 -->
+  <style>
+    .pulse-circle {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      position: relative;
+      background-color: #4ade80; /* 預設綠色 */
+      animation: pulse 2s infinite;
+      box-shadow: 0 0 0 rgba(0,0,0, 0.3);
+    }
+
+    .pulse-circle.red {
+      background-color: #f87171; /* 故障紅色 */
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.4);
+      }
+      70% {
+        box-shadow: 0 0 0 10px rgba(0, 255, 0, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(0, 255, 0, 0);
+      }
+    }
+
+    .pulse-circle.red {
+      animation: pulse-red 2s infinite;
+    }
+
+    @keyframes pulse-red {
+      0% {
+        box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.5);
+      }
+      70% {
+        box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
+      }
+    }
+  </style>
+</head>
+<body class="h-screen m-0 p-0">
+  <div id="map" class="w-full h-full"></div>
+
+  <script>
+    const map = L.map('map').setView([23.6, 120.9], 7);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // 站點資料（您可以用 AJAX 從 API 載入）
+    const stations = [
+      { name: "台中南屯", lat: 24.1367, lng: 120.6094, status: "normal" },
+      { name: "台中南區", lat: 24.1108, lng: 120.6749, status: "normal" },
+      { name: "台中北屯", lat: 24.1813, lng: 120.7125, status: "normal" },
+      { name: "台南", lat: 22.9999, lng: 120.2270, status: "normal" },
+      { name: "高雄", lat: 22.6273, lng: 120.3014, status: "error" },
+      { name: "花蓮", lat: 23.9745, lng: 121.6146, status: "normal" },
+    ];
+
+    stations.forEach(station => {
+      const divIcon = L.divIcon({
+        className: '',
+        html: `<div class="pulse-circle ${station.status === 'error' ? 'red' : ''}"></div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+      });
+
+      L.marker([station.lat, station.lng], { icon: divIcon })
+        .addTo(map)
+        .bindPopup(`<strong>${station.name}</strong><br>狀態：${station.status === 'normal' ? '✅ 正常' : '❌ 故障'}`);
+    });
+  </script>
+</body>
+</html>
